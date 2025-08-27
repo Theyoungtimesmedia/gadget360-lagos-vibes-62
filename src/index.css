@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 0 84% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 210 40% 88%;
+
+    --muted: 0 0% 16%;
+    --muted-foreground: 217 10% 65%;
+
+    --accent: 0 90% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 84% 60%;
+
+    --whatsapp: 142 70% 49%;
+    --whatsapp-foreground: 210 40% 98%;
+    
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+
+    --radius: 1rem;
+    
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 6%), hsl(0 84% 12%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%), hsl(0 84% 10%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 90% 50%));
+    --shadow-elegant: 0 25px 50px -12px hsl(0 84% 60% / 0.25), 0 15px 30px -5px hsl(0 0% 0% / 0.4);
+    --shadow-card: 0 8px 25px -5px hsl(0 84% 60% / 0.15), 0 4px 15px -2px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 40px hsl(0 84% 60% / 0.2);
+
+    --sidebar-background: 220 13% 16%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 14 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 13% 22%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 220 13% 25%;
+    --sidebar-ring: 14 100% 65%;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 14 100% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 14 100% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 14 100% 65%;
+    
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Custom gradient utilities */
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+  
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
