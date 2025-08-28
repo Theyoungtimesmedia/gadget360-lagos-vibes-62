@@ -13,28 +13,10 @@ import { User, Package, Star, LogOut } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-interface Profile {
-  id: string;
-  user_id: string;
-  full_name: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-  country: string | null;
-  created_at: string;
-  updated_at: string;
-  auto_withdraw_enabled: boolean;
-  referral_code: string | null;
-  referrer_id: string | null;
-}
+import { Database } from "@/integrations/supabase/types";
 
-interface Order {
-  id: string;
-  total_amount: number;
-  status: string;
-  created_at: string;
-  customer_name: string;
-  customer_email: string;
-}
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type Order = Database['public']['Tables']['orders']['Row'];
 
 const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -67,7 +49,7 @@ const Profile = () => {
       if (profileError) {
         console.error('Error loading profile:', profileError);
       } else if (profileData) {
-        setProfile(profileData as Profile);
+        setProfile(profileData);
       }
 
       // Load orders
@@ -80,7 +62,7 @@ const Profile = () => {
       if (ordersError) {
         console.error('Error loading orders:', ordersError);
       } else {
-        setOrders((ordersData || []) as Order[]);
+        setOrders(ordersData || []);
       }
     } catch (error) {
       console.error('Error loading profile data:', error);
@@ -98,9 +80,7 @@ const Profile = () => {
         .from('profiles')
         .update({
           full_name: profile.full_name,
-          phone: profile.phone,
-          avatar_url: profile.avatar_url,
-          country: profile.country
+          avatar_url: profile.avatar_url
         })
         .eq('user_id', user.id);
 
@@ -196,22 +176,6 @@ const Profile = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Phone Number</label>
-                    <Input
-                      value={profile?.phone || ""}
-                      onChange={(e) => setProfile(prev => prev ? {...prev, phone: e.target.value} : null)}
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Country</label>
-                    <Input
-                      value={profile?.country || ""}
-                      onChange={(e) => setProfile(prev => prev ? {...prev, country: e.target.value} : null)}
-                      placeholder="Enter your country"
-                    />
-                  </div>
-                  <div>
                     <label className="text-sm font-medium">Email Address</label>
                     <Input
                       value={user.email || ""}
@@ -230,31 +194,6 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {profile?.referral_code && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Referral Code</CardTitle>
-                  <CardDescription>
-                    Share this code with friends to earn rewards
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <Input 
-                      value={profile.referral_code} 
-                      readOnly 
-                      className="font-mono"
-                    />
-                    <Button 
-                      onClick={() => navigator.clipboard.writeText(profile.referral_code || '')}
-                      variant="outline"
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
           <TabsContent value="orders">
@@ -297,7 +236,7 @@ const Profile = () => {
                             {order.id.slice(0, 8)}...
                           </TableCell>
                           <TableCell>
-                            ₦{(order.total_amount / 100).toLocaleString()}
+                            ₦{Number(order.total_amount).toLocaleString()}
                           </TableCell>
                           <TableCell>
                             <Badge 

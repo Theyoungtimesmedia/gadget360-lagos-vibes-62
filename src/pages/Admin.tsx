@@ -24,54 +24,13 @@ import {
   Eye
 } from "lucide-react";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price_cents: number;
-  category: string;
-  stock_quantity: number;
-  image_url: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Database } from "@/integrations/supabase/types";
 
-interface User {
-  id: string;
-  user_id: string;
-  full_name: string;
-  phone: string;
-  avatar_url: string;
-  country: string;
-  created_at: string;
-  auto_withdraw_enabled: boolean;
-  referral_code: string;
-  referrer_id: string;
-  updated_at: string;
-}
+type Product = Database['public']['Tables']['products']['Row'];
+type User = Database['public']['Tables']['profiles']['Row'];
+type Order = Database['public']['Tables']['orders']['Row'];
+type ChatSession = Database['public']['Tables']['chat_sessions']['Row'];
 
-interface Order {
-  id: string;
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  total_amount: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  user_id: string;
-  customer_name: string;
-  session_started_at: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 const Admin = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -112,7 +71,7 @@ const Admin = () => {
         .order('created_at', { ascending: false });
 
       if (productsData) {
-        setProducts(productsData as Product[]);
+        setProducts(productsData);
       }
 
       // Fetch users
@@ -122,7 +81,7 @@ const Admin = () => {
         .order('created_at', { ascending: false });
 
       if (usersData) {
-        setUsers(usersData as User[]);
+        setUsers(usersData);
       }
 
       // Fetch orders
@@ -132,7 +91,7 @@ const Admin = () => {
         .order('created_at', { ascending: false });
 
       if (ordersData) {
-        setOrders(ordersData as Order[]);
+        setOrders(ordersData);
       }
 
       // Fetch chat sessions
@@ -142,7 +101,7 @@ const Admin = () => {
         .order('created_at', { ascending: false });
 
       if (chatData) {
-        setChatSessions(chatData as ChatSession[]);
+        setChatSessions(chatData);
       }
 
       // Calculate stats
@@ -152,7 +111,7 @@ const Admin = () => {
         setStats(prev => ({ 
           ...prev, 
           totalOrders: ordersData.length,
-          totalRevenue: ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+          totalRevenue: ordersData.reduce((sum, order) => sum + Number(order.total_amount || 0), 0)
         }));
       }
     } catch (error) {
@@ -209,7 +168,7 @@ const Admin = () => {
         .insert({
           name: newProduct.name,
           description: newProduct.description,
-          price_cents: Number(newProduct.price) * 100, // Convert to cents
+          price: Number(newProduct.price),
           category: newProduct.category,
           stock_quantity: Number(newProduct.stock) || 0,
           image_url: newProduct.image
@@ -326,7 +285,7 @@ const Admin = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₦{(stats.totalRevenue / 100).toLocaleString()}</div>
+              <div className="text-2xl font-bold">₦{stats.totalRevenue.toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
@@ -422,7 +381,7 @@ const Admin = () => {
                         <TableCell>
                           <Badge variant="outline">{product.category}</Badge>
                         </TableCell>
-                        <TableCell>₦{(product.price_cents / 100).toLocaleString()}</TableCell>
+                        <TableCell>₦{product.price.toLocaleString()}</TableCell>
                         <TableCell>{product.stock_quantity}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -467,9 +426,9 @@ const Admin = () => {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell>{user.full_name || 'N/A'}</TableCell>
-                        <TableCell>{user.phone || 'N/A'}</TableCell>
-                        <TableCell>{user.country || 'N/A'}</TableCell>
+                      <TableCell>{user.full_name || 'N/A'}</TableCell>
+                      <TableCell>N/A</TableCell>
+                      <TableCell>N/A</TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Button 
@@ -511,7 +470,7 @@ const Admin = () => {
                       <TableRow key={order.id}>
                         <TableCell className="font-mono">{order.id.slice(0, 8)}</TableCell>
                         <TableCell>{order.customer_name}</TableCell>
-                        <TableCell>₦{(order.total_amount / 100).toLocaleString()}</TableCell>
+                        <TableCell>₦{Number(order.total_amount).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
                             {order.status}
