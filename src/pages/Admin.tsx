@@ -53,6 +53,9 @@ const Admin = () => {
     stock: "",
     image: ""
   });
+  
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -152,6 +155,17 @@ const Admin = () => {
     }
   };
 
+  const handleImageUpload = async () => {
+    if (!imageFile) return null;
+
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    
+    // For now, just return a placeholder URL since we need Supabase storage setup
+    // In a real implementation, you would upload to Supabase Storage here
+    return `/lovable-uploads/${fileName}`;
+  };
+
   const addProduct = async () => {
     if (!newProduct.name || !newProduct.price) {
       toast({
@@ -163,6 +177,12 @@ const Admin = () => {
     }
 
     try {
+      let imageUrl = newProduct.image;
+      
+      if (imageFile) {
+        imageUrl = await handleImageUpload();
+      }
+
       const { error } = await supabase
         .from('products')
         .insert({
@@ -171,7 +191,7 @@ const Admin = () => {
           price: Number(newProduct.price),
           category: newProduct.category,
           stock_quantity: Number(newProduct.stock) || 0,
-          image_url: newProduct.image
+          image_url: imageUrl
         });
 
       if (error) throw error;
@@ -189,6 +209,7 @@ const Admin = () => {
         stock: "",
         image: ""
       });
+      setImageFile(null);
 
       fetchData();
     } catch (error: any) {
@@ -198,6 +219,88 @@ const Admin = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const startEditing = (product: Product) => {
+    setEditingProduct(product);
+    setNewProduct({
+      name: product.name,
+      description: product.description || "",
+      price: product.price.toString(),
+      category: product.category || "",
+      stock: product.stock_quantity.toString(),
+      image: product.image_url || ""
+    });
+  };
+
+  const updateProduct = async () => {
+    if (!editingProduct || !newProduct.name || !newProduct.price) {
+      toast({
+        title: "Error",
+        description: "Please fill in required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      let imageUrl = newProduct.image;
+      
+      if (imageFile) {
+        imageUrl = await handleImageUpload();
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: newProduct.name,
+          description: newProduct.description,
+          price: Number(newProduct.price),
+          category: newProduct.category,
+          stock_quantity: Number(newProduct.stock) || 0,
+          image_url: imageUrl
+        })
+        .eq('id', editingProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+
+      setEditingProduct(null);
+      setNewProduct({
+        name: "",
+        description: "",
+        price: "",
+        category: "",
+        stock: "",
+        image: ""
+      });
+      setImageFile(null);
+
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingProduct(null);
+    setNewProduct({
+      name: "",
+      description: "",
+      price: "",
+      category: "",
+      stock: "",
+      image: ""
+    });
+    setImageFile(null);
   };
 
   const deleteProduct = async (productId: string) => {
@@ -304,11 +407,11 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5" />
-                  Add New Product
+                  {editingProduct ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                  {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </CardTitle>
                 <CardDescription>
-                  Upload new products to your store
+                  {editingProduct ? 'Update product information' : 'Upload new products to your store'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -329,10 +432,10 @@ const Admin = () => {
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Consoles & Games">Consoles & Games</SelectItem>
-                      <SelectItem value="Phones">Phones</SelectItem>
+                      <SelectItem value="Smartphones">Smartphones</SelectItem>
+                      <SelectItem value="Gaming">Gaming</SelectItem>
+                      <SelectItem value="Audio">Audio</SelectItem>
                       <SelectItem value="Laptops">Laptops</SelectItem>
-                      <SelectItem value="Apple">Apple</SelectItem>
                       <SelectItem value="Accessories">Accessories</SelectItem>
                     </SelectContent>
                   </Select>
@@ -343,19 +446,37 @@ const Admin = () => {
                     onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
                   />
                 </div>
-                <Input
-                  placeholder="Image URL"
-                  value={newProduct.image}
-                  onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Product Image</label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  />
+                  <Input
+                    placeholder="Or enter image URL"
+                    value={newProduct.image}
+                    onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                  />
+                </div>
                 <Textarea
                   placeholder="Product Description"
                   value={newProduct.description}
                   onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
                 />
-                <Button onClick={addProduct} className="w-full">
-                  Add Product
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={editingProduct ? updateProduct : addProduct} 
+                    className="flex-1"
+                  >
+                    {editingProduct ? 'Update Product' : 'Add Product'}
+                  </Button>
+                  {editingProduct && (
+                    <Button onClick={cancelEdit} variant="outline">
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -367,6 +488,7 @@ const Admin = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Image</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Price</TableHead>
@@ -377,15 +499,36 @@ const Admin = () => {
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell>{product.name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{product.category}</Badge>
+                          {product.image_url ? (
+                            <img 
+                              src={product.image_url} 
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
                         </TableCell>
-                        <TableCell>₦{product.price.toLocaleString()}</TableCell>
-                        <TableCell>{product.stock_quantity}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{product.category || 'Uncategorized'}</Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold">₦{product.price.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={product.stock_quantity > 0 ? "default" : "destructive"}>
+                            {product.stock_quantity} in stock
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => startEditing(product)}
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button 
