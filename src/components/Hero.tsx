@@ -7,32 +7,14 @@ const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides = [
-      {
-        id: 1,
-        title: "Get Authentic Gadgets",
-        subtitle: "Bringing the future to your hands",
-        description: "We sell, buy and swap phones, computers, accessories & consoles with warranty",
-        image: "/hero-gadgets.png",
-        cta: "WhatsApp to Order",
-        offer: "Free delivery in Lagos"
-      },
     {
-      id: 2, 
-      title: "PS5 Slim Available",
-      subtitle: "Latest Gaming Console",
-      description: "Brand new PlayStation 5 Slim with 1-year warranty. Fast delivery nationwide.",
-      image: "/lovable-uploads/df694e32-c5af-43c0-84b0-7f0fd813286e.png",
-      cta: "Order on WhatsApp",
-      offer: "₦880,000"
-    },
-    {
-      id: 3,
-      title: "Apple Devices",
-      subtitle: "iPhones, MacBooks & More", 
-      description: "Authentic Apple products with warranty. Buy, sell, or swap your devices.",
-      image: "/lovable-uploads/371bdd40-ee61-409b-8a61-603c7a2ef02a.png",
-      cta: "Get Quote",
-      offer: "Trade-in available"
+      id: 1,
+      title: "Get Authentic Gadgets",
+      subtitle: "Bringing the future to your hands",
+      description: "We sell, buy and swap phones, computers, accessories & consoles with warranty",
+      image: "/hero-gadgets.png",
+      cta: "WhatsApp to Order",
+      offer: "Free delivery in Lagos"
     }
   ];
 
