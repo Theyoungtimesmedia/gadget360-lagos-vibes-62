@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { MessageCircle, X, Send, Bot, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageCircle, X, Send, Bot, ExternalLink, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 interface Message {
   id: string;
@@ -12,16 +16,80 @@ interface Message {
 }
 
 const LiveChat = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [chatSession, setChatSession] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+      initializeChatSession();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    setUserProfile(data);
+  };
+
+  const initializeChatSession = async () => {
+    if (!user) return;
+
+    // Create or get existing chat session
+    const { data: existingSession } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+
+    if (existingSession) {
+      setChatSession(existingSession.id);
+      loadChatMessages(existingSession.id);
+    } else {
+      const { data: newSession } = await supabase
+        .from('chat_sessions')
+        .insert({
+          user_id: user.id,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (newSession) {
+        setChatSession(newSession.id);
+        // Add welcome message
+        setMessages([{
+          id: "1",
+          text: `Hi ${userProfile?.full_name || 'there'}! 👋 I'm Gadget Bot. Need help ordering? Type 'Order' or 'WhatsApp' to speak to a human.`,
+          isBot: true,
+          timestamp: new Date()
+        }]);
+      }
+    }
+  };
+
+  const loadChatMessages = async (sessionId: string) => {
+    // Here you would load existing messages from a chat_messages table
+    // For now, just show welcome message
+    setMessages([{
       id: "1",
-      text: "Hi! 👋 I'm Gadget Bot. Need help ordering? Type 'Order' or 'WhatsApp' to speak to a human.",
+      text: `Welcome back ${userProfile?.full_name || 'there'}! 👋 How can I help you today?`,
       isBot: true,
       timestamp: new Date()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState("");
+    }]);
+  };
 
   const getBotResponse = (userMessage: string): string => {
     const message = userMessage.toLowerCase();
@@ -85,6 +153,69 @@ const LiveChat = () => {
     }
   };
 
+  if (!user) {
+    return (
+      <>
+        {!isOpen && (
+          <Button
+            onClick={() => setIsOpen(true)}
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-whatsapp hover:bg-whatsapp/90 shadow-elegant z-50 animate-pulse"
+            size="icon"
+          >
+            <MessageCircle size={24} />
+          </Button>
+        )}
+
+        {isOpen && (
+          <Card className="fixed bottom-6 right-6 w-80 sm:w-96 h-[400px] shadow-elegant border-accent/20 backdrop-blur-sm bg-card/95 z-50 flex flex-col">
+            <CardHeader className="bg-primary text-primary-foreground p-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot size={20} />
+                  <CardTitle className="text-lg">Gadget Bot</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <LogIn size={48} className="text-muted-foreground mb-4" />
+              <h3 className="font-semibold mb-2">Sign in to Chat</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Please sign in to start chatting with our support bot
+              </p>
+              <div className="space-y-2 w-full">
+                <Link to="/auth" className="block">
+                  <Button className="w-full" onClick={() => setIsOpen(false)}>
+                    Sign In
+                  </Button>
+                </Link>
+                <a 
+                  href="https://wa.me/2347067894474" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <Button variant="outline" className="w-full bg-whatsapp hover:bg-whatsapp/90 text-white">
+                    <img src="/social-icons/whatsapp.png" className="w-4 h-4 mr-2" alt="WhatsApp" />
+                    Chat on WhatsApp
+                  </Button>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {/* Chat Widget */}
@@ -100,7 +231,7 @@ const LiveChat = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <Card className="fixed bottom-6 right-6 w-80 sm:w-96 h-[500px] shadow-elegant border-accent/20 backdrop-blur-sm bg-card/95 z-50 flex flex-col">
+        <Card className="fixed bottom-6 right-6 w-80 sm:w-96 h-[500px] shadow-elegant border-accent/20 backdrop-blur-sm bg-card/95 z-50 flex flex-col max-h-[80vh]">
           <CardHeader className="bg-primary text-primary-foreground p-4 rounded-t-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -117,7 +248,7 @@ const LiveChat = () => {
               </Button>
             </div>
             <p className="text-sm text-primary-foreground/80">
-              Online now • Usually replies in minutes
+              Chatting as {userProfile?.full_name || user?.email} • Online now
             </p>
           </CardHeader>
 
