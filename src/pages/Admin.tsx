@@ -650,7 +650,7 @@ const Admin = () => {
                     {chatSessions.map((session) => (
                       <TableRow key={session.id}>
                         <TableCell className="font-mono">{session.id.slice(0, 8)}</TableCell>
-                        <TableCell>{session.customer_name || 'Anonymous'}</TableCell>
+                        <TableCell>{session.user_id.slice(0, 8)}</TableCell>
                         <TableCell>
                           <Badge variant={session.is_active ? 'default' : 'secondary'}>
                             {session.is_active ? 'Active' : 'Closed'}
