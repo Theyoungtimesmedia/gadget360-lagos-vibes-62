@@ -612,7 +612,7 @@ const Admin = () => {
                     {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-mono">{order.id.slice(0, 8)}</TableCell>
-                        <TableCell>{order.customer_name}</TableCell>
+                        <TableCell>{order.customer_email}</TableCell>
                         <TableCell>₦{Number(order.total_amount).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
