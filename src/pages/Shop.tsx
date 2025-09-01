@@ -82,13 +82,11 @@ const Shop = () => {
 
 
   const categories = [
-    "Consoles & Games",
-    "Phones",
+    "Smartphones",
+    "Gaming", 
+    "Audio",
     "Laptops",
-    "Apple",
-    "Accessories",
-    "Headphones",
-    "Controllers & Cables"
+    "Accessories"
   ];
 
   const filteredProducts = products.filter(product => {

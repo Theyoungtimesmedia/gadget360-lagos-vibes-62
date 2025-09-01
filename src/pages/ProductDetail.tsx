@@ -208,7 +208,7 @@ const ProductDetail = () => {
                   className="flex-1"
                   disabled={product.stock_quantity === 0}
                 >
-                  <img src="/social-icons/whatsapp.png" className="w-5 h-5 mr-2" alt="WhatsApp" />
+                  <img src="/public/social-icons/whatsapp.svg" className="w-5 h-5 mr-2 brightness-0 invert" alt="WhatsApp" />
                   Order on WhatsApp
                 </Button>
                 <Button variant="outline" size="icon" className="p-6">

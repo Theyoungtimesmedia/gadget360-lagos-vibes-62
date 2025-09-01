@@ -72,7 +72,7 @@ const Hero = () => {
                       rel="noopener noreferrer"
                      >
                        <Button size="lg" className="bg-whatsapp hover:bg-whatsapp/90 text-lg px-8 rounded-full shadow-elegant">
-                         <img src="/lovable-uploads/324f72db-2bf4-494a-b73f-0b8faf06993f.png" className="mr-2 w-5 h-5 brightness-0 invert" alt="WhatsApp" />
+                         <img src="/public/social-icons/whatsapp.svg" className="mr-2 w-5 h-5 brightness-0 invert" alt="WhatsApp" />
                          {slide.cta}
                        </Button>
                     </a>
@@ -101,19 +101,7 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* Navigation arrows */}
-        <button 
-          onClick={prevSlide}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-card/80 hover:bg-card text-foreground p-3 rounded-full backdrop-blur-sm border border-border shadow-lg transition-all hover:scale-110"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <button 
-          onClick={nextSlide}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-card/80 hover:bg-card text-foreground p-3 rounded-full backdrop-blur-sm border border-border shadow-lg transition-all hover:scale-110"
-        >
-          <ChevronRight size={20} />
-        </button>
+        {/* Remove navigation arrows as requested */}
 
         {/* Slide indicators */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3">

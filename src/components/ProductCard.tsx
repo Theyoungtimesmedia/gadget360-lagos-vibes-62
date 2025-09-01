@@ -70,9 +70,9 @@ const ProductCard = ({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
           >
-            <Button size="sm" className="bg-whatsapp/90 hover:bg-whatsapp p-3 rounded-full shadow-elegant">
-              <img src="/lovable-uploads/c9fd8577-52ae-4feb-bdf2-503f9e458bdc.png" className="w-4 h-4 brightness-0 invert" alt="WhatsApp" />
-            </Button>
+             <Button size="sm" className="bg-whatsapp/90 hover:bg-whatsapp p-3 rounded-full shadow-elegant">
+               <img src="/public/social-icons/whatsapp.svg" className="w-4 h-4 brightness-0 invert" alt="WhatsApp" />
+             </Button>
           </a>
         </div>
         </div>
@@ -105,49 +105,50 @@ const ProductCard = ({
             <span className="text-sm text-muted-foreground font-medium">({rating})</span>
           </div>
 
-          {/* Price */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl font-bold text-primary">
-                {formatPrice(price)}
-              </span>
-              {originalPrice && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatPrice(originalPrice)}
-                </span>
-              )}
-            </div>
-          </div>
+           {/* Price */}
+           <div className="space-y-2">
+             <div className="flex items-center gap-2 flex-wrap">
+               <span className="text-lg md:text-2xl lg:text-3xl font-bold text-primary break-words">
+                 {formatPrice(price)}
+               </span>
+               {originalPrice && (
+                 <span className="text-xs md:text-sm text-muted-foreground line-through">
+                   {formatPrice(originalPrice)}
+                 </span>
+               )}
+             </div>
+           </div>
           </div>
         </Link>
       </CardContent>
 
-      <CardFooter className="p-6 pt-0 space-y-3">
-        <div className="flex gap-3 w-full">
-          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+      <CardFooter className="p-3 md:p-6 pt-0 space-y-2 md:space-y-3">
+        <div className="flex gap-2 md:gap-3 w-full">
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-0">
             <Button 
-              className="w-full bg-whatsapp hover:bg-whatsapp/90 rounded-full shadow-elegant font-medium" 
+              className="w-full bg-whatsapp hover:bg-whatsapp/90 rounded-full shadow-elegant font-medium text-xs md:text-sm px-2 md:px-4 py-2 h-auto min-h-[32px] md:min-h-[40px]" 
               disabled={!inStock}
             >
-              <img src="/lovable-uploads/c9fd8577-52ae-4feb-bdf2-503f9e458bdc.png" className="w-4 h-4 mr-2 brightness-0 invert" alt="WhatsApp" />
-              WhatsApp Order
+              <img src="/public/social-icons/whatsapp.svg" className="w-3 h-3 md:w-4 md:h-4 mr-1 brightness-0 invert flex-shrink-0" alt="WhatsApp" />
+              <span className="truncate text-xs md:text-sm">WhatsApp</span>
             </Button>
           </a>
           
           <Link to={`/product/${id}`} className="shrink-0">
             <Button 
               variant="outline" 
-              size="icon"
+              size="sm"
               disabled={!inStock}
-              className="hover:bg-primary hover:text-primary-foreground rounded-full border-2 hover:shadow-glow transition-all"
+              className="hover:bg-primary hover:text-primary-foreground rounded-full border-2 hover:shadow-glow transition-all h-8 w-8 md:h-10 md:w-10 p-1 md:p-2"
             >
-              <ShoppingCart size={16} />
+              <ShoppingCart size={12} className="md:hidden" />
+              <ShoppingCart size={16} className="hidden md:block" />
             </Button>
           </Link>
         </div>
 
         {!inStock && (
-          <p className="text-sm text-muted-foreground text-center font-medium">
+          <p className="text-xs md:text-sm text-muted-foreground text-center font-medium">
             WhatsApp us for availability
           </p>
         )}
