@@ -72,7 +72,7 @@ const Hero = () => {
                       rel="noopener noreferrer"
                      >
                        <Button size="lg" className="bg-whatsapp hover:bg-whatsapp/90 text-lg px-8 rounded-full shadow-elegant">
-                         <img src="/public/social-icons/whatsapp.svg" className="mr-2 w-5 h-5 brightness-0 invert" alt="WhatsApp" />
+                         <img src="/social-icons/whatsapp.svg" className="mr-2 w-5 h-5 brightness-0 invert" alt="WhatsApp" />
                          {slide.cta}
                        </Button>
                     </a>

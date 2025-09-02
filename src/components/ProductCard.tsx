@@ -70,9 +70,9 @@ const ProductCard = ({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
           >
-             <Button size="sm" className="bg-whatsapp/90 hover:bg-whatsapp p-3 rounded-full shadow-elegant">
-               <img src="/public/social-icons/whatsapp.svg" className="w-4 h-4 brightness-0 invert" alt="WhatsApp" />
-             </Button>
+              <Button size="sm" className="bg-whatsapp/90 hover:bg-whatsapp p-3 rounded-full shadow-elegant">
+                <img src="/social-icons/whatsapp.svg" className="w-4 h-4 brightness-0 invert" alt="WhatsApp" />
+              </Button>
           </a>
         </div>
         </div>
@@ -129,7 +129,7 @@ const ProductCard = ({
               className="w-full bg-whatsapp hover:bg-whatsapp/90 rounded-full shadow-elegant font-medium text-xs md:text-sm px-2 md:px-4 py-2 h-auto min-h-[32px] md:min-h-[40px]" 
               disabled={!inStock}
             >
-              <img src="/public/social-icons/whatsapp.svg" className="w-3 h-3 md:w-4 md:h-4 mr-1 brightness-0 invert flex-shrink-0" alt="WhatsApp" />
+              <img src="/social-icons/whatsapp.svg" className="w-3 h-3 md:w-4 md:h-4 mr-1 brightness-0 invert flex-shrink-0" alt="WhatsApp" />
               <span className="truncate text-xs md:text-sm">WhatsApp</span>
             </Button>
           </a>
