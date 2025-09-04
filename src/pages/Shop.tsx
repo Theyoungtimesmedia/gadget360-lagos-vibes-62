@@ -82,10 +82,11 @@ const Shop = () => {
 
 
   const categories = [
-    "Smartphones",
-    "Gaming", 
+    "Apple",
     "Audio",
+    "Gaming", 
     "Laptops",
+    "Smartphones",
     "Accessories"
   ];
 
