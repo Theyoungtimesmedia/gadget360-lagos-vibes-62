@@ -6,7 +6,7 @@ const MobileNavigation = () => {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
-    { icon: Grid3X3, label: "Categories", path: "/shop" },
+    { icon: Grid3X3, label: "Shop", path: "/shop" },
     { icon: Search, label: "Search", path: "/search" },
     { icon: ShoppingCart, label: "Cart", path: "/cart" },
     { icon: User, label: "Profile", path: "/profile" },
