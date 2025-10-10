@@ -21,7 +21,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  Sparkles
 } from "lucide-react";
 
 import { Database } from "@/integrations/supabase/types";
@@ -56,13 +57,30 @@ const Admin = () => {
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is admin (you can implement proper auth check)
     fetchData();
+    
+    // Set up real-time subscription for products
+    const productsChannel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'products' }, 
+        (payload) => {
+          console.log('Product change detected:', payload);
+          fetchData(); // Refresh all data when products change
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(productsChannel);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -349,6 +367,53 @@ const Admin = () => {
     }
   };
 
+  const generateProductWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a product description for AI generation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-product', {
+        body: { prompt: aiPrompt }
+      });
+
+      if (error) throw error;
+
+      if (data?.product) {
+        setNewProduct({
+          name: data.product.name,
+          description: data.product.description,
+          price: data.product.price.toString(),
+          category: data.product.category,
+          stock: data.product.stock.toString(),
+          image: data.product.image_url || ""
+        });
+
+        toast({
+          title: "Success",
+          description: "Product details generated! Review and save to add to store.",
+        });
+        
+        setAiPrompt("");
+      }
+    } catch (error: any) {
+      console.error('AI generation error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -424,6 +489,45 @@ const Admin = () => {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-6">
+            {/* AI Product Generator */}
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI Product Generator
+                </CardTitle>
+                <CardDescription>
+                  Describe your product and let AI generate all the details instantly
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  placeholder="E.g., 'Create a premium gaming laptop with RGB keyboard, 32GB RAM, RTX 4090, priced around ₦1,200,000'"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+                <Button 
+                  onClick={generateProductWithAI}
+                  disabled={isGenerating || !aiPrompt.trim()}
+                  className="w-full"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Product
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -452,10 +556,11 @@ const Admin = () => {
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Smartphones">Smartphones</SelectItem>
-                      <SelectItem value="Gaming">Gaming</SelectItem>
+                      <SelectItem value="Apple">Apple</SelectItem>
                       <SelectItem value="Audio">Audio</SelectItem>
+                      <SelectItem value="Gaming">Gaming</SelectItem>
                       <SelectItem value="Laptops">Laptops</SelectItem>
+                      <SelectItem value="Smartphones">Smartphones</SelectItem>
                       <SelectItem value="Accessories">Accessories</SelectItem>
                     </SelectContent>
                   </Select>

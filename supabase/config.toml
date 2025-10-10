@@ -1,1 +1,7 @@
 project_id = "yasicaakzqqhmtgscbhg"
+
+[functions.gemini-chat]
+verify_jwt = false
+
+[functions.generate-product]
+verify_jwt = true
