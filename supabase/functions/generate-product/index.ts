@@ -12,18 +12,19 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, imageUrl } = await req.json();
     
     if (!prompt) {
       throw new Error("Prompt is required");
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
     }
 
     console.log('Generating product with prompt:', prompt);
+    console.log('Image URL provided:', imageUrl ? 'Yes' : 'No');
 
     const systemPrompt = `You are a product catalog expert for an electronics and gadgets e-commerce store. 
 Generate realistic product details based on the user's description. 
@@ -34,35 +35,40 @@ Return ONLY valid JSON with this exact structure:
   "price": 150000,
   "category": "One of: Apple, Audio, Gaming, Laptops, Smartphones, Accessories",
   "stock": 10,
-  "image_url": "/lovable-uploads/placeholder-image.png"
+  "image_url": ""
 }
 
-Use realistic Nigerian Naira prices (₦). Be specific and detailed in descriptions.`;
+Use realistic Nigerian Naira prices (₦). Be specific and detailed in descriptions.
+Do NOT include an image_url in your response - it will be provided separately.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
+        contents: [{
+          parts: [{
+            text: `${systemPrompt}\n\nUser request: ${prompt}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI API error:', response.status, errorText);
-      throw new Error(`AI API error: ${response.status}`);
+      console.error('Gemini API error:', response.status, errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const generatedText = data.choices[0].message.content;
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     console.log('AI Response:', generatedText);
 
@@ -82,8 +88,10 @@ Use realistic Nigerian Naira prices (₦). Be specific and detailed in descripti
       throw new Error('Generated product is missing required fields');
     }
 
-    // Set default image based on category if not provided
-    if (!productData.image_url || productData.image_url.includes('placeholder')) {
+    // Use provided image URL or set default based on category
+    if (imageUrl) {
+      productData.image_url = imageUrl;
+    } else if (!productData.image_url || productData.image_url.includes('placeholder') || !productData.image_url) {
       const categoryImages: { [key: string]: string } = {
         'Apple': '/lovable-uploads/0bb67128-8dd5-487b-a971-3259ae739094.png',
         'Audio': '/lovable-uploads/335cb308-9043-47a5-9ea4-82bc3bbed7cc.png',

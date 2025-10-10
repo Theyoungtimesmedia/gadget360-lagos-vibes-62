@@ -176,31 +176,41 @@ const Admin = () => {
   const handleImageUpload = async (): Promise<string> => {
     if (!imageFile) return "";
     
-    // Create a FormData to upload the file
-    const formData = new FormData();
-    formData.append('file', imageFile);
-    
-    // For demo purposes, we'll use the existing image URLs from the uploaded images
-    // In a real implementation, you would upload to a storage service
-    const fileName = imageFile.name.toLowerCase();
-    
-    // Map common product names to appropriate uploaded images
-    if (fileName.includes('iphone') || fileName.includes('14')) {
-      return '/lovable-uploads/ad694c5b-8e7f-4a24-9ebd-42513e5083c8.png';
-    } else if (fileName.includes('nintendo') || fileName.includes('switch')) {
-      return '/lovable-uploads/b60f1cdc-ff71-45e3-b32d-dc95867b7c50.png';
-    } else if (fileName.includes('laptop') || fileName.includes('computer')) {
-      return '/lovable-uploads/919a30b9-0909-4dc7-8c35-566c0d822ce5.png';
-    } else {
-      // Default to a random available image
-      const availableImages = [
-        '/lovable-uploads/ad694c5b-8e7f-4a24-9ebd-42513e5083c8.png',
-        '/lovable-uploads/9f937d3c-ed97-439a-b47c-0838b3dc1aae.png',
-        '/lovable-uploads/edc3f7ca-21de-4d5e-8620-a2572dd70d2c.png',
-        '/lovable-uploads/64051fa0-7718-4c8f-a814-ec0f96fee646.png',
-        '/lovable-uploads/0f57611f-454c-419a-8218-ab4c97095d2d.png'
-      ];
-      return availableImages[Math.floor(Math.random() * availableImages.length)];
+    try {
+      // Create a unique file path with timestamp
+      const timestamp = Date.now();
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `product-${timestamp}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+      
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('Images for products')
+        .upload(filePath, imageFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('Images for products')
+        .getPublicUrl(filePath);
+      
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload image. Using default.",
+        variant: "destructive",
+      });
+      // Fallback to default image
+      return '/lovable-uploads/0bb67128-8dd5-487b-a971-3259ae739094.png';
     }
   };
 
@@ -379,8 +389,17 @@ const Admin = () => {
 
     setIsGenerating(true);
     try {
+      // Upload image first if provided
+      let uploadedImageUrl = "";
+      if (imageFile) {
+        uploadedImageUrl = await handleImageUpload();
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-product', {
-        body: { prompt: aiPrompt }
+        body: { 
+          prompt: aiPrompt,
+          imageUrl: uploadedImageUrl || undefined
+        }
       });
 
       if (error) throw error;
@@ -392,15 +411,16 @@ const Admin = () => {
           price: data.product.price.toString(),
           category: data.product.category,
           stock: data.product.stock.toString(),
-          image: data.product.image_url || ""
+          image: data.product.image_url || uploadedImageUrl || ""
         });
 
         toast({
           title: "Success",
-          description: "Product details generated! Review and save to add to store.",
+          description: "Product details generated with your uploaded image! Review and save to add to store.",
         });
         
         setAiPrompt("");
+        setImageFile(null);
       }
     } catch (error: any) {
       console.error('AI generation error:', error);
@@ -497,10 +517,24 @@ const Admin = () => {
                   AI Product Generator
                 </CardTitle>
                 <CardDescription>
-                  Describe your product and let AI generate all the details instantly
+                  Upload an image and describe your product - AI will generate all the details instantly
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Product Image (Optional)</label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="cursor-pointer"
+                  />
+                  {imageFile && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {imageFile.name}
+                    </p>
+                  )}
+                </div>
                 <Textarea
                   placeholder="E.g., 'Create a premium gaming laptop with RGB keyboard, 32GB RAM, RTX 4090, priced around ₦1,200,000'"
                   value={aiPrompt}
@@ -521,7 +555,7 @@ const Admin = () => {
                   ) : (
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Product
+                      Generate Product with AI
                     </>
                   )}
                 </Button>
