@@ -30,7 +30,10 @@ const FeaturedProducts = () => {
             category: product.category || 'Uncategorized',
             rating: 4.8, // Default rating since we don't have reviews yet
             inStock: product.stock_quantity > 0,
-            specs: product.description?.substring(0, 50) + '...' || ''
+            specs: product.description?.substring(0, 50) + '...' || '',
+            isFeatured: product.is_featured || false,
+            badgeText: product.badge_text || undefined,
+            badgeColor: product.badge_color || undefined
           }));
           setProducts(transformedProducts);
         }

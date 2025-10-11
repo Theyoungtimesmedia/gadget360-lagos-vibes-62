@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import CartButton from "@/components/CartButton";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -158,6 +159,10 @@ const Header = () => {
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80">
                   <div className="flex flex-col gap-4 mt-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold">Menu</h2>
+                      <ThemeToggle />
+                    </div>
                     <Link to="/" onClick={() => setIsOpen(false)} className="text-lg font-medium">
                       Home
                     </Link>
@@ -218,6 +223,7 @@ const Header = () => {
               <div className="flex items-center gap-6 text-sm">
                 <Link to="/shop" className="hover:text-primary font-medium transition-colors">All Products</Link>
                 <Link to="/contact" className="hover:text-primary font-medium transition-colors">Contact</Link>
+                <ThemeToggle />
               </div>
             </div>
           </div>

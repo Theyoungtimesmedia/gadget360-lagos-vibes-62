@@ -151,25 +151,91 @@ const ProductDetail = () => {
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square bg-card rounded-2xl overflow-hidden border">
+            <div className="aspect-square bg-card rounded-2xl overflow-hidden border relative">
               <OptimizedImage 
-                src={product.image_url || "/placeholder.svg"} 
+                src={(product.additional_images && product.additional_images.length > 0 && selectedImage > 0) 
+                  ? product.additional_images[selectedImage - 1]
+                  : product.image_url || "/placeholder.svg"} 
                 alt={product.name}
                 className="w-full h-full object-contain p-8"
                 priority={true}
               />
+              {product.is_featured && (
+                <Badge className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-glow">
+                  ⭐ Featured Product
+                </Badge>
+              )}
+              {product.badge_text && (
+                <Badge 
+                  className="absolute top-4 right-4 shadow-lg"
+                  style={{ 
+                    backgroundColor: product.badge_color || 'blue',
+                    color: 'white'
+                  }}
+                >
+                  {product.badge_text}
+                </Badge>
+              )}
             </div>
+            
+            {/* Image Gallery Thumbnails */}
+            {product.additional_images && product.additional_images.length > 0 && (
+              <div className="grid grid-cols-5 gap-2">
+                <button
+                  onClick={() => setSelectedImage(0)}
+                  className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedImage === 0 ? 'border-primary shadow-lg' : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <OptimizedImage 
+                    src={product.image_url || "/placeholder.svg"} 
+                    alt="Main"
+                    className="w-full h-full object-cover p-1"
+                  />
+                </button>
+                {product.additional_images.map((img: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx + 1)}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedImage === idx + 1 ? 'border-primary shadow-lg' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <OptimizedImage 
+                      src={img} 
+                      alt={`Gallery ${idx + 1}`}
+                      className="w-full h-full object-cover p-1"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
           <div className="space-y-6">
             <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge variant="outline">{product.category}</Badge>
                 {product.stock_quantity > 0 ? (
-                  <Badge variant="secondary">In Stock</Badge>
+                  <Badge variant="secondary">✓ In Stock</Badge>
                 ) : (
                   <Badge variant="destructive">Out of Stock</Badge>
+                )}
+                {product.is_featured && (
+                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
+                    ⭐ Featured
+                  </Badge>
+                )}
+                {product.badge_text && (
+                  <Badge 
+                    style={{ 
+                      backgroundColor: product.badge_color || 'blue',
+                      color: 'white'
+                    }}
+                  >
+                    {product.badge_text}
+                  </Badge>
                 )}
               </div>
               

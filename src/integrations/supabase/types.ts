@@ -149,33 +149,51 @@ export type Database = {
       }
       products: {
         Row: {
+          additional_images: string[] | null
+          badge_color: string | null
+          badge_text: string | null
           category: string | null
           created_at: string
           description: string | null
           id: string
           image_url: string | null
+          is_featured: boolean | null
+          meta_description: string | null
+          meta_title: string | null
           name: string
           price: number
           stock_quantity: number
           updated_at: string
         }
         Insert: {
+          additional_images?: string[] | null
+          badge_color?: string | null
+          badge_text?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
+          is_featured?: boolean | null
+          meta_description?: string | null
+          meta_title?: string | null
           name: string
           price: number
           stock_quantity?: number
           updated_at?: string
         }
         Update: {
+          additional_images?: string[] | null
+          badge_color?: string | null
+          badge_text?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
+          is_featured?: boolean | null
+          meta_description?: string | null
+          meta_title?: string | null
           name?: string
           price?: number
           stock_quantity?: number

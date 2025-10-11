@@ -64,7 +64,10 @@ const Shop = () => {
         category: product.category,
         rating: 4.5, // Default rating since we don't have reviews aggregated yet
         inStock: product.stock_quantity > 0,
-        specs: product.description
+        specs: product.description,
+        isFeatured: product.is_featured || false,
+        badgeText: product.badge_text || undefined,
+        badgeColor: product.badge_color || undefined
       })) || [];
 
       setProducts(formattedProducts);

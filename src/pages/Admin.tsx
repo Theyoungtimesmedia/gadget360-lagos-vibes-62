@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import ThemeToggle from "@/components/ThemeToggle";
 import { 
-  Shield, 
   Package, 
   Users, 
   MessageSquare, 
@@ -22,7 +24,12 @@ import {
   Edit,
   Trash2,
   Eye,
-  Sparkles
+  Sparkles,
+  Upload,
+  X,
+  Copy,
+  CheckCircle2,
+  Image as ImageIcon
 } from "lucide-react";
 
 import { Database } from "@/integrations/supabase/types";
@@ -31,7 +38,6 @@ type Product = Database['public']['Tables']['products']['Row'];
 type User = Database['public']['Tables']['profiles']['Row'];
 type Order = Database['public']['Tables']['orders']['Row'];
 type ChatSession = Database['public']['Tables']['chat_sessions']['Row'];
-
 
 const Admin = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,28 +58,66 @@ const Admin = () => {
     price: "",
     category: "",
     stock: "",
-    image: ""
+    image: "",
+    meta_title: "",
+    meta_description: "",
+    is_featured: false,
+    badge_text: "",
+    badge_color: ""
   });
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<File[]>([]);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [additionalPreviews, setAdditionalPreviews] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Example prompts for AI generation
+  const examplePrompts = [
+    "Gaming laptop with RTX 4090, 32GB RAM, RGB keyboard - ₦1,200,000",
+    "iPhone 15 Pro Max 256GB Space Black with accessories - ₦850,000",
+    "Sony WH-1000XM5 wireless noise cancelling headphones - ₦185,000",
+    "PS5 console with 2 controllers and 3 games bundle - ₦420,000"
+  ];
+
   useEffect(() => {
     fetchData();
     
-    // Set up real-time subscription for products
+    // Real-time subscription for products with visual notifications
     const productsChannel = supabase
       .channel('products-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'products' }, 
         (payload) => {
           console.log('Product change detected:', payload);
-          fetchData(); // Refresh all data when products change
+          
+          // Show toast notification for changes
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "New Product Added",
+              description: "A new product has been added to the store",
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            toast({
+              title: "Product Updated",
+              description: "A product has been updated",
+            });
+          } else if (payload.eventType === 'DELETE') {
+            toast({
+              title: "Product Deleted",
+              description: "A product has been removed from the store",
+            });
+          }
+          
+          fetchData();
         }
       )
       .subscribe();
@@ -82,6 +126,38 @@ const Admin = () => {
       supabase.removeChannel(productsChannel);
     };
   }, []);
+
+  // Image preview handler
+  useEffect(() => {
+    if (imageFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(imageFile);
+    } else {
+      setImagePreview("");
+    }
+  }, [imageFile]);
+
+  // Additional images preview handler
+  useEffect(() => {
+    const previews: string[] = [];
+    additionalImages.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        previews.push(reader.result as string);
+        if (previews.length === additionalImages.length) {
+          setAdditionalPreviews(previews);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    if (additionalImages.length === 0) {
+      setAdditionalPreviews([]);
+    }
+  }, [additionalImages]);
 
   const fetchData = async () => {
     try {
@@ -173,20 +249,16 @@ const Admin = () => {
     }
   };
 
-  const handleImageUpload = async (): Promise<string> => {
-    if (!imageFile) return "";
-    
+  const handleImageUpload = async (file: File): Promise<string> => {
     try {
-      // Create a unique file path with timestamp
       const timestamp = Date.now();
-      const fileExt = imageFile.name.split('.').pop();
+      const fileExt = file.name.split('.').pop();
       const fileName = `product-${timestamp}.${fileExt}`;
       const filePath = `products/${fileName}`;
       
-      // Upload to Supabase storage
       const { data, error } = await supabase.storage
         .from('Images for products')
-        .upload(filePath, imageFile, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
@@ -196,7 +268,6 @@ const Admin = () => {
         throw error;
       }
       
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('Images for products')
         .getPublicUrl(filePath);
@@ -206,11 +277,10 @@ const Admin = () => {
       console.error('Error uploading image:', error);
       toast({
         title: "Upload Error",
-        description: "Failed to upload image. Using default.",
+        description: "Failed to upload image",
         variant: "destructive",
       });
-      // Fallback to default image
-      return '/lovable-uploads/0bb67128-8dd5-487b-a971-3259ae739094.png';
+      return '';
     }
   };
 
@@ -226,9 +296,15 @@ const Admin = () => {
 
     try {
       let imageUrl = newProduct.image;
+      let additionalImageUrls: string[] = [];
       
       if (imageFile) {
-        imageUrl = await handleImageUpload();
+        imageUrl = await handleImageUpload(imageFile);
+      }
+
+      if (additionalImages.length > 0) {
+        const uploadPromises = additionalImages.map(file => handleImageUpload(file));
+        additionalImageUrls = await Promise.all(uploadPromises);
       }
 
       const { error } = await supabase
@@ -239,7 +315,13 @@ const Admin = () => {
           price: Number(newProduct.price),
           category: newProduct.category,
           stock_quantity: Number(newProduct.stock) || 0,
-          image_url: imageUrl
+          image_url: imageUrl,
+          additional_images: additionalImageUrls,
+          is_featured: newProduct.is_featured,
+          meta_title: newProduct.meta_title || newProduct.name,
+          meta_description: newProduct.meta_description || newProduct.description,
+          badge_text: newProduct.badge_text,
+          badge_color: newProduct.badge_color
         });
 
       if (error) throw error;
@@ -249,16 +331,7 @@ const Admin = () => {
         description: "Product added successfully",
       });
 
-      setNewProduct({
-        name: "",
-        description: "",
-        price: "",
-        category: "",
-        stock: "",
-        image: ""
-      });
-      setImageFile(null);
-
+      resetForm();
       fetchData();
     } catch (error: any) {
       toast({
@@ -277,7 +350,12 @@ const Admin = () => {
       price: product.price.toString(),
       category: product.category || "",
       stock: product.stock_quantity.toString(),
-      image: product.image_url || ""
+      image: product.image_url || "",
+      meta_title: product.meta_title || "",
+      meta_description: product.meta_description || "",
+      is_featured: product.is_featured || false,
+      badge_text: product.badge_text || "",
+      badge_color: product.badge_color || ""
     });
   };
 
@@ -293,9 +371,16 @@ const Admin = () => {
 
     try {
       let imageUrl = newProduct.image;
+      let additionalImageUrls: string[] = editingProduct.additional_images || [];
       
       if (imageFile) {
-        imageUrl = await handleImageUpload();
+        imageUrl = await handleImageUpload(imageFile);
+      }
+
+      if (additionalImages.length > 0) {
+        const uploadPromises = additionalImages.map(file => handleImageUpload(file));
+        const newUrls = await Promise.all(uploadPromises);
+        additionalImageUrls = [...additionalImageUrls, ...newUrls];
       }
 
       const { error } = await supabase
@@ -306,7 +391,13 @@ const Admin = () => {
           price: Number(newProduct.price),
           category: newProduct.category,
           stock_quantity: Number(newProduct.stock) || 0,
-          image_url: imageUrl
+          image_url: imageUrl,
+          additional_images: additionalImageUrls,
+          is_featured: newProduct.is_featured,
+          meta_title: newProduct.meta_title || newProduct.name,
+          meta_description: newProduct.meta_description || newProduct.description,
+          badge_text: newProduct.badge_text,
+          badge_color: newProduct.badge_color
         })
         .eq('id', editingProduct.id);
 
@@ -317,17 +408,7 @@ const Admin = () => {
         description: "Product updated successfully",
       });
 
-      setEditingProduct(null);
-      setNewProduct({
-        name: "",
-        description: "",
-        price: "",
-        category: "",
-        stock: "",
-        image: ""
-      });
-      setImageFile(null);
-
+      resetForm();
       fetchData();
     } catch (error: any) {
       toast({
@@ -338,7 +419,7 @@ const Admin = () => {
     }
   };
 
-  const cancelEdit = () => {
+  const resetForm = () => {
     setEditingProduct(null);
     setNewProduct({
       name: "",
@@ -346,9 +427,17 @@ const Admin = () => {
       price: "",
       category: "",
       stock: "",
-      image: ""
+      image: "",
+      meta_title: "",
+      meta_description: "",
+      is_featured: false,
+      badge_text: "",
+      badge_color: ""
     });
     setImageFile(null);
+    setAdditionalImages([]);
+    setImagePreview("");
+    setAdditionalPreviews([]);
   };
 
   const deleteProduct = async (productId: string) => {
@@ -377,6 +466,78 @@ const Admin = () => {
     }
   };
 
+  const duplicateProduct = async (product: Product) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .insert({
+          name: `${product.name} (Copy)`,
+          description: product.description,
+          price: product.price,
+          category: product.category,
+          stock_quantity: product.stock_quantity,
+          image_url: product.image_url,
+          additional_images: product.additional_images,
+          is_featured: false,
+          meta_title: product.meta_title,
+          meta_description: product.meta_description,
+          badge_text: product.badge_text,
+          badge_color: product.badge_color
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Product duplicated successfully",
+      });
+      
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selectedProducts.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select products to delete",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete ${selectedProducts.length} products?`)) {
+      try {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .in('id', selectedProducts);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `${selectedProducts.length} products deleted successfully`,
+        });
+        
+        setSelectedProducts([]);
+        fetchData();
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const generateProductWithAI = async () => {
     if (!aiPrompt.trim()) {
       toast({
@@ -389,10 +550,9 @@ const Admin = () => {
 
     setIsGenerating(true);
     try {
-      // Upload image first if provided
       let uploadedImageUrl = "";
       if (imageFile) {
-        uploadedImageUrl = await handleImageUpload();
+        uploadedImageUrl = await handleImageUpload(imageFile);
       }
 
       const { data, error } = await supabase.functions.invoke('generate-product', {
@@ -411,16 +571,26 @@ const Admin = () => {
           price: data.product.price.toString(),
           category: data.product.category,
           stock: data.product.stock.toString(),
-          image: data.product.image_url || uploadedImageUrl || ""
+          image: data.product.image_url || uploadedImageUrl || "",
+          meta_title: data.product.name,
+          meta_description: data.product.description,
+          is_featured: false,
+          badge_text: "",
+          badge_color: ""
         });
 
         toast({
           title: "Success",
-          description: "Product details generated with your uploaded image! Review and save to add to store.",
+          description: "Product generated! Review and save to add to store.",
+          action: (
+            <Button size="sm" onClick={addProduct}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Save Now
+            </Button>
+          ),
         });
         
         setAiPrompt("");
-        setImageFile(null);
       }
     } catch (error: any) {
       console.error('AI generation error:', error);
@@ -450,9 +620,12 @@ const Admin = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <Button onClick={() => navigate("/")} variant="outline">
-            Back to Store
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button onClick={() => navigate("/")} variant="outline">
+              Back to Store
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -514,43 +687,97 @@ const Admin = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  AI Product Generator
+                  AI Product Generator (Powered by Gemini)
                 </CardTitle>
                 <CardDescription>
                   Upload an image and describe your product - AI will generate all the details instantly
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Example Prompts */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Product Image (Optional)</label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                    className="cursor-pointer"
-                  />
-                  {imageFile && (
-                    <p className="text-sm text-muted-foreground">
-                      Selected: {imageFile.name}
-                    </p>
+                  <label className="text-sm font-medium">Example Prompts:</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {examplePrompts.map((prompt, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        className="justify-start text-xs h-auto py-2 px-3"
+                        onClick={() => setAiPrompt(prompt)}
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Image Upload */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Product Image (Recommended)</label>
+                  <div className="flex items-center gap-4">
+                    <label className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors">
+                        <Upload className="h-4 w-4" />
+                        <span className="text-sm">Upload Image</span>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                    </label>
+                    {imageFile && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">{imageFile.name}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setImageFile(null);
+                            setImagePreview("");
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {imagePreview && (
+                    <div className="mt-2">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="w-32 h-32 object-cover rounded-lg border"
+                      />
+                    </div>
                   )}
                 </div>
-                <Textarea
-                  placeholder="E.g., 'Create a premium gaming laptop with RGB keyboard, 32GB RAM, RTX 4090, priced around ₦1,200,000'"
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
+
+                {/* AI Prompt */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Describe Your Product</label>
+                  <Textarea
+                    placeholder="E.g., 'Create a premium gaming laptop with RGB keyboard, 32GB RAM, RTX 4090, priced around ₦1,200,000'"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+
+                {/* Generate Button */}
                 <Button 
                   onClick={generateProductWithAI}
                   disabled={isGenerating || !aiPrompt.trim()}
                   className="w-full"
+                  size="lg"
                 >
                   {isGenerating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Generating...
+                      Generating with AI...
                     </>
                   ) : (
                     <>
@@ -562,6 +789,7 @@ const Admin = () => {
               </CardContent>
             </Card>
 
+            {/* Add/Edit Product Form */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -569,95 +797,316 @@ const Admin = () => {
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </CardTitle>
                 <CardDescription>
-                  {editingProduct ? 'Update product information' : 'Upload new products to your store'}
+                  {editingProduct ? 'Update product information' : 'Add new products to your store'}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Product Name"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price (₦)"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                  />
-                  <Select value={newProduct.category} onValueChange={(value) => setNewProduct({...newProduct, category: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Apple">Apple</SelectItem>
-                      <SelectItem value="Audio">Audio</SelectItem>
-                      <SelectItem value="Gaming">Gaming</SelectItem>
-                      <SelectItem value="Laptops">Laptops</SelectItem>
-                      <SelectItem value="Smartphones">Smartphones</SelectItem>
-                      <SelectItem value="Accessories">Accessories</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    placeholder="Stock Quantity"
-                    value={newProduct.stock}
-                    onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Product Image</label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  />
-                  <Input
-                    placeholder="Or enter image URL"
-                    value={newProduct.image}
-                    onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+              <CardContent className="space-y-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Basic Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      placeholder="Product Name *"
+                      value={newProduct.name}
+                      onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Price (₦) *"
+                      value={newProduct.price}
+                      onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                    />
+                    <Select value={newProduct.category} onValueChange={(value) => setNewProduct({...newProduct, category: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Category *" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Apple">Apple</SelectItem>
+                        <SelectItem value="Audio">Audio</SelectItem>
+                        <SelectItem value="Gaming">Gaming</SelectItem>
+                        <SelectItem value="Laptops">Laptops</SelectItem>
+                        <SelectItem value="Smartphones">Smartphones</SelectItem>
+                        <SelectItem value="Accessories">Accessories</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="Stock Quantity *"
+                      value={newProduct.stock}
+                      onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                    />
+                  </div>
+                  <Textarea
+                    placeholder="Product Description *"
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                    rows={4}
                   />
                 </div>
-                <Textarea
-                  placeholder="Product Description"
-                  value={newProduct.description}
-                  onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                />
+
+                {/* Images */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Product Images</h3>
+                  
+                  {/* Main Image */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Main Image</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="cursor-pointer">
+                        <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors w-fit">
+                          <ImageIcon className="h-4 w-4" />
+                          <span className="text-sm">Upload Main Image</span>
+                        </div>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+                      <Input
+                        placeholder="Or enter image URL"
+                        value={newProduct.image}
+                        onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                      />
+                      {(imagePreview || newProduct.image) && (
+                        <div className="relative w-32 h-32">
+                          <img 
+                            src={imagePreview || newProduct.image} 
+                            alt="Main preview" 
+                            className="w-full h-full object-cover rounded-lg border"
+                          />
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview("");
+                              setNewProduct({...newProduct, image: ""});
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional Images */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Additional Images (Gallery)</label>
+                    <label className="cursor-pointer">
+                      <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors w-fit">
+                        <Plus className="h-4 w-4" />
+                        <span className="text-sm">Add More Images</span>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setAdditionalImages(prev => [...prev, ...files]);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {additionalPreviews.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {additionalPreviews.map((preview, index) => (
+                          <div key={index} className="relative w-24 h-24">
+                            <img 
+                              src={preview} 
+                              alt={`Additional ${index + 1}`} 
+                              className="w-full h-full object-cover rounded-lg border"
+                            />
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0"
+                              onClick={() => {
+                                setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Advanced Options */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Advanced Options</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="featured"
+                        checked={newProduct.is_featured}
+                        onCheckedChange={(checked) => 
+                          setNewProduct({...newProduct, is_featured: checked as boolean})
+                        }
+                      />
+                      <label
+                        htmlFor="featured"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Featured Product
+                      </label>
+                    </div>
+                    <Input
+                      placeholder="Badge Text (e.g., 'NEW', 'SALE')"
+                      value={newProduct.badge_text}
+                      onChange={(e) => setNewProduct({...newProduct, badge_text: e.target.value})}
+                    />
+                    <Select 
+                      value={newProduct.badge_color} 
+                      onValueChange={(value) => setNewProduct({...newProduct, badge_color: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Badge Color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="red">Red</SelectItem>
+                        <SelectItem value="green">Green</SelectItem>
+                        <SelectItem value="blue">Blue</SelectItem>
+                        <SelectItem value="yellow">Yellow</SelectItem>
+                        <SelectItem value="purple">Purple</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* SEO Fields */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">SEO Optimization</h3>
+                  <div className="space-y-4">
+                    <Input
+                      placeholder="Meta Title (for search engines)"
+                      value={newProduct.meta_title}
+                      onChange={(e) => setNewProduct({...newProduct, meta_title: e.target.value})}
+                    />
+                    <Textarea
+                      placeholder="Meta Description (for search engines)"
+                      value={newProduct.meta_description}
+                      onChange={(e) => setNewProduct({...newProduct, meta_description: e.target.value})}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button 
                     onClick={editingProduct ? updateProduct : addProduct} 
                     className="flex-1"
+                    size="lg"
                   >
-                    {editingProduct ? 'Update Product' : 'Add Product'}
+                    {editingProduct ? (
+                      <>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Update Product
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Product
+                      </>
+                    )}
                   </Button>
                   {editingProduct && (
-                    <Button onClick={cancelEdit} variant="outline">
+                    <Button onClick={resetForm} variant="outline" size="lg">
                       Cancel
                     </Button>
                   )}
+                  <Button
+                    onClick={() => {
+                      if (newProduct.name) {
+                        setPreviewProduct({
+                          ...newProduct,
+                          id: 'preview',
+                          price: Number(newProduct.price),
+                          stock_quantity: Number(newProduct.stock),
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                          image_url: imagePreview || newProduct.image,
+                          additional_images: additionalPreviews
+                        } as any);
+                        setShowPreview(true);
+                      }
+                    }}
+                    variant="secondary"
+                    size="lg"
+                    disabled={!newProduct.name}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Bulk Actions */}
+            {selectedProducts.length > 0 && (
+              <Alert>
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{selectedProducts.length} products selected</span>
+                  <Button onClick={bulkDelete} variant="destructive" size="sm">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Selected
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Products Table */}
             <Card>
               <CardHeader>
-                <CardTitle>All Products</CardTitle>
+                <CardTitle>All Products ({products.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedProducts.length === products.length && products.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedProducts(products.map(p => p.id));
+                            } else {
+                              setSelectedProducts([]);
+                            }
+                          }}
+                        />
+                      </TableHead>
                       <TableHead>Image</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Stock</TableHead>
+                      <TableHead>Featured</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {products.map((product) => (
                       <TableRow key={product.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedProducts.includes(product.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedProducts(prev => [...prev, product.id]);
+                              } else {
+                                setSelectedProducts(prev => prev.filter(id => id !== product.id));
+                              }
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           {product.image_url ? (
                             <img 
@@ -682,18 +1131,44 @@ const Admin = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          {product.is_featured && (
+                            <Badge variant="secondary">Featured</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setPreviewProduct(product);
+                                setShowPreview(true);
+                              }}
+                              title="Preview"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button 
                               size="sm" 
                               variant="outline"
                               onClick={() => startEditing(product)}
+                              title="Edit"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button 
                               size="sm" 
+                              variant="outline"
+                              onClick={() => duplicateProduct(product)}
+                              title="Duplicate"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
                               variant="destructive"
                               onClick={() => deleteProduct(product.id)}
+                              title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -711,7 +1186,7 @@ const Admin = () => {
           <TabsContent value="users">
             <Card>
               <CardHeader>
-                <CardTitle>Registered Users</CardTitle>
+                <CardTitle>Registered Users ({users.length})</CardTitle>
                 <CardDescription>Manage user accounts</CardDescription>
               </CardHeader>
               <CardContent>
@@ -719,8 +1194,7 @@ const Admin = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Country</TableHead>
+                      <TableHead>User ID</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -728,9 +1202,8 @@ const Admin = () => {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                      <TableCell>{user.full_name || 'N/A'}</TableCell>
-                      <TableCell>N/A</TableCell>
-                      <TableCell>N/A</TableCell>
+                        <TableCell>{user.full_name || 'N/A'}</TableCell>
+                        <TableCell className="font-mono text-xs">{user.user_id.slice(0, 12)}...</TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Button 
@@ -753,7 +1226,7 @@ const Admin = () => {
           <TabsContent value="orders">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
+                <CardTitle>Recent Orders ({orders.length})</CardTitle>
                 <CardDescription>Manage customer orders</CardDescription>
               </CardHeader>
               <CardContent>
@@ -770,9 +1243,9 @@ const Admin = () => {
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono">{order.id.slice(0, 8)}</TableCell>
+                        <TableCell className="font-mono text-xs">{order.id.slice(0, 8)}</TableCell>
                         <TableCell>{order.customer_email}</TableCell>
-                        <TableCell>₦{Number(order.total_amount).toLocaleString()}</TableCell>
+                        <TableCell className="font-semibold">₦{Number(order.total_amount).toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
                             {order.status}
@@ -791,7 +1264,7 @@ const Admin = () => {
           <TabsContent value="chat">
             <Card>
               <CardHeader>
-                <CardTitle>Live Chat Sessions</CardTitle>
+                <CardTitle>Live Chat Sessions ({chatSessions.length})</CardTitle>
                 <CardDescription>Monitor customer conversations</CardDescription>
               </CardHeader>
               <CardContent>
@@ -808,8 +1281,8 @@ const Admin = () => {
                   <TableBody>
                     {chatSessions.map((session) => (
                       <TableRow key={session.id}>
-                        <TableCell className="font-mono">{session.id.slice(0, 8)}</TableCell>
-                        <TableCell>{session.user_id.slice(0, 8)}</TableCell>
+                        <TableCell className="font-mono text-xs">{session.id.slice(0, 8)}</TableCell>
+                        <TableCell className="font-mono text-xs">{session.user_id.slice(0, 8)}</TableCell>
                         <TableCell>
                           <Badge variant={session.is_active ? 'default' : 'secondary'}>
                             {session.is_active ? 'Active' : 'Closed'}
@@ -830,6 +1303,50 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Product Preview</DialogTitle>
+            <DialogDescription>
+              This is how the product will appear on your store
+            </DialogDescription>
+          </DialogHeader>
+          {previewProduct && (
+            <div className="space-y-4">
+              {previewProduct.image_url && (
+                <img 
+                  src={previewProduct.image_url} 
+                  alt={previewProduct.name}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              )}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold">{previewProduct.name}</h2>
+                  {previewProduct.badge_text && (
+                    <Badge style={{ backgroundColor: previewProduct.badge_color || 'blue' }}>
+                      {previewProduct.badge_text}
+                    </Badge>
+                  )}
+                  {previewProduct.is_featured && (
+                    <Badge variant="secondary">Featured</Badge>
+                  )}
+                </div>
+                <p className="text-3xl font-bold text-primary">
+                  ₦{previewProduct.price.toLocaleString()}
+                </p>
+                <Badge variant="outline">{previewProduct.category}</Badge>
+                <p className="text-muted-foreground">{previewProduct.description}</p>
+                <p className="text-sm">
+                  <span className="font-medium">Stock:</span> {previewProduct.stock_quantity} available
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -16,6 +16,9 @@ interface ProductCardProps {
   inStock?: boolean;
   isNew?: boolean;
   specs?: string;
+  isFeatured?: boolean;
+  badgeText?: string;
+  badgeColor?: string;
 }
 
 const ProductCard = ({ 
@@ -28,7 +31,10 @@ const ProductCard = ({
   rating = 4.5, 
   inStock = true,
   isNew = false,
-  specs
+  specs,
+  isFeatured = false,
+  badgeText,
+  badgeColor
 }: ProductCardProps) => {
   const formatPrice = (amount: number) => {
     return `₦${amount.toLocaleString()}`;
@@ -49,6 +55,20 @@ const ProductCard = ({
         
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {isFeatured && (
+            <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-glow">⭐ Featured</Badge>
+          )}
+          {badgeText && (
+            <Badge 
+              className="shadow-lg"
+              style={{ 
+                backgroundColor: badgeColor || 'blue',
+                color: 'white'
+              }}
+            >
+              {badgeText}
+            </Badge>
+          )}
           {isNew && (
             <Badge className="bg-primary text-primary-foreground shadow-glow">New</Badge>
           )}
