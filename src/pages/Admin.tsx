@@ -76,6 +76,9 @@ const Admin = () => {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedMainImageUrl, setUploadedMainImageUrl] = useState<string>("");
+  const [uploadedAdditionalUrls, setUploadedAdditionalUrls] = useState<string[]>([]);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -281,39 +284,97 @@ const Admin = () => {
     }
   };
 
-  const handleImageUpload = async (file: File): Promise<string> => {
-    try {
-      const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
-      const fileName = `product-${timestamp}.${fileExt}`;
-      const filePath = `products/${fileName}`;
-      
-      const { data, error } = await supabase.storage
-        .from('Images for products')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      if (error) {
-        console.error('Upload error:', error);
-        throw error;
-      }
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('Images for products')
-        .getPublicUrl(filePath);
-      
-      return publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
+  const uploadImagesToStorage = async (files: File[]): Promise<string[]> => {
+    if (files.length > 10) {
       toast({
-        title: "Upload Error",
-        description: "Failed to upload image",
+        title: "Too Many Images",
+        description: "You can upload a maximum of 10 images at once",
         variant: "destructive",
       });
-      return '';
+      return [];
     }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('images', file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('upload-image', {
+        body: formData,
+      });
+
+      if (error) {
+        console.error('Upload error:', error);
+        throw new Error(error.message || 'Failed to upload images');
+      }
+
+      if (!data?.urls || data.urls.length === 0) {
+        throw new Error('No URLs returned from upload');
+      }
+
+      toast({
+        title: "Success",
+        description: `${data.urls.length} image(s) uploaded successfully`,
+      });
+
+      return data.urls;
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload images. Please try again.",
+        variant: "destructive",
+      });
+      return [];
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleMainImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageFile(file);
+    
+    // Auto-upload immediately
+    const urls = await uploadImagesToStorage([file]);
+    if (urls.length > 0) {
+      setUploadedMainImageUrl(urls[0]);
+      setNewProduct(prev => ({ ...prev, image: urls[0] }));
+    }
+  };
+
+  const handleAdditionalImagesSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (files.length > 10) {
+      toast({
+        title: "Too Many Images",
+        description: "You can upload a maximum of 10 images at once",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAdditionalImages(files);
+    
+    // Auto-upload immediately
+    const urls = await uploadImagesToStorage(files);
+    if (urls.length > 0) {
+      setUploadedAdditionalUrls(prev => [...prev, ...urls]);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "URL copied to clipboard",
+    });
   };
 
   const addProduct = async () => {
@@ -327,17 +388,9 @@ const Admin = () => {
     }
 
     try {
-      let imageUrl = newProduct.image;
-      let additionalImageUrls: string[] = [];
-      
-      if (imageFile) {
-        imageUrl = await handleImageUpload(imageFile);
-      }
-
-      if (additionalImages.length > 0) {
-        const uploadPromises = additionalImages.map(file => handleImageUpload(file));
-        additionalImageUrls = await Promise.all(uploadPromises);
-      }
+      // Use uploaded URLs (already uploaded when files were selected)
+      const imageUrl = uploadedMainImageUrl || newProduct.image;
+      const additionalImageUrls = uploadedAdditionalUrls;
 
       const { error } = await supabase
         .from('products')
@@ -402,18 +455,10 @@ const Admin = () => {
     }
 
     try {
-      let imageUrl = newProduct.image;
-      let additionalImageUrls: string[] = editingProduct.additional_images || [];
-      
-      if (imageFile) {
-        imageUrl = await handleImageUpload(imageFile);
-      }
-
-      if (additionalImages.length > 0) {
-        const uploadPromises = additionalImages.map(file => handleImageUpload(file));
-        const newUrls = await Promise.all(uploadPromises);
-        additionalImageUrls = [...additionalImageUrls, ...newUrls];
-      }
+      // Use uploaded URLs or existing ones
+      const imageUrl = uploadedMainImageUrl || newProduct.image;
+      const existingAdditionalUrls = editingProduct.additional_images || [];
+      const additionalImageUrls = [...existingAdditionalUrls, ...uploadedAdditionalUrls];
 
       const { error } = await supabase
         .from('products')
@@ -470,6 +515,8 @@ const Admin = () => {
     setAdditionalImages([]);
     setImagePreview("");
     setAdditionalPreviews([]);
+    setUploadedMainImageUrl("");
+    setUploadedAdditionalUrls([]);
   };
 
   const deleteProduct = async (productId: string) => {
@@ -582,15 +629,13 @@ const Admin = () => {
 
     setIsGenerating(true);
     try {
-      let uploadedImageUrl = "";
-      if (imageFile) {
-        uploadedImageUrl = await handleImageUpload(imageFile);
-      }
+      // Use already uploaded image URL if available
+      const imageUrlToUse = uploadedMainImageUrl || undefined;
 
       const { data, error } = await supabase.functions.invoke('generate-product', {
         body: { 
           prompt: aiPrompt,
-          imageUrl: uploadedImageUrl || undefined
+          imageUrl: imageUrlToUse
         }
       });
 
@@ -603,7 +648,7 @@ const Admin = () => {
           price: data.product.price.toString(),
           category: data.product.category,
           stock: data.product.stock.toString(),
-          image: data.product.image_url || uploadedImageUrl || "",
+          image: data.product.image_url || uploadedMainImageUrl || "",
           meta_title: data.product.name,
           meta_description: data.product.description,
           is_featured: false,
@@ -747,19 +792,44 @@ const Admin = () => {
                 {/* Image Upload */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Product Image (Recommended)</label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-4">
                     <label className="cursor-pointer">
                       <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors">
                         <Upload className="h-4 w-4" />
-                        <span className="text-sm">Upload Image</span>
+                        <span className="text-sm">
+                          {isUploading ? 'Uploading...' : 'Upload Image (Auto-Upload)'}
+                        </span>
                       </div>
                       <Input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                        onChange={handleMainImageSelect}
                         className="hidden"
+                        disabled={isUploading}
                       />
                     </label>
+                    
+                    {/* Display uploaded URL */}
+                    {uploadedMainImageUrl && (
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Uploaded Image URL:</label>
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Input
+                            value={uploadedMainImageUrl}
+                            readOnly
+                            className="text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(uploadedMainImageUrl)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
                     {imageFile && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">{imageFile.name}</span>
@@ -769,6 +839,7 @@ const Admin = () => {
                           onClick={() => {
                             setImageFile(null);
                             setImagePreview("");
+                            setUploadedMainImageUrl("");
                           }}
                         >
                           <X className="h-4 w-4" />
@@ -876,7 +947,7 @@ const Admin = () => {
                   />
                 </div>
 
-                {/* Images */}
+                 {/* Images */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold">Product Images</h3>
                   
@@ -887,20 +958,42 @@ const Admin = () => {
                       <label className="cursor-pointer">
                         <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors w-fit">
                           <ImageIcon className="h-4 w-4" />
-                          <span className="text-sm">Upload Main Image</span>
+                          <span className="text-sm">
+                            {isUploading ? 'Uploading...' : 'Upload Main Image (Auto-Upload)'}
+                          </span>
                         </div>
                         <Input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                          onChange={handleMainImageSelect}
                           className="hidden"
+                          disabled={isUploading}
                         />
                       </label>
                       <Input
-                        placeholder="Or enter image URL"
+                        placeholder="Or enter image URL manually"
                         value={newProduct.image}
                         onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
                       />
+                      
+                      {/* URL Display Box */}
+                      {uploadedMainImageUrl && (
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Input
+                            value={uploadedMainImageUrl}
+                            readOnly
+                            className="text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(uploadedMainImageUrl)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      
                       {(imagePreview || newProduct.image) && (
                         <div className="relative w-32 h-32">
                           <img 
@@ -916,6 +1009,7 @@ const Admin = () => {
                               setImageFile(null);
                               setImagePreview("");
                               setNewProduct({...newProduct, image: ""});
+                              setUploadedMainImageUrl("");
                             }}
                           >
                             <X className="h-3 w-3" />
@@ -927,23 +1021,56 @@ const Admin = () => {
 
                   {/* Additional Images */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Additional Images (Gallery)</label>
+                    <label className="text-sm font-medium">Additional Images (Max 10 total)</label>
                     <label className="cursor-pointer">
                       <div className="flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent transition-colors w-fit">
                         <Plus className="h-4 w-4" />
-                        <span className="text-sm">Add More Images</span>
+                        <span className="text-sm">
+                          {isUploading ? 'Uploading...' : 'Add More Images (Auto-Upload)'}
+                        </span>
                       </div>
                       <Input
                         type="file"
                         accept="image/*"
                         multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          setAdditionalImages(prev => [...prev, ...files]);
-                        }}
+                        onChange={handleAdditionalImagesSelect}
                         className="hidden"
+                        disabled={isUploading}
                       />
                     </label>
+                    
+                    {/* Uploaded URLs Display */}
+                    {uploadedAdditionalUrls.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Uploaded Image URLs:</p>
+                        {uploadedAdditionalUrls.map((url, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                            <Input
+                              value={url}
+                              readOnly
+                              className="text-xs"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyToClipboard(url)}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setUploadedAdditionalUrls(prev => prev.filter((_, i) => i !== index));
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     {additionalPreviews.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {additionalPreviews.map((preview, index) => (
@@ -959,6 +1086,7 @@ const Admin = () => {
                               className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0"
                               onClick={() => {
                                 setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+                                setAdditionalPreviews(prev => prev.filter((_, i) => i !== index));
                               }}
                             >
                               <X className="h-3 w-3" />
