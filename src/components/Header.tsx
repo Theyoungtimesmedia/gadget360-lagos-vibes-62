@@ -92,7 +92,7 @@ const Header = () => {
                   <img src="/lovable-uploads/c9fd8577-52ae-4feb-bdf2-503f9e458bdc.png" className="w-4 h-4 opacity-80" alt="WhatsApp" />
                 </a>
                 <a 
-                  href="https://www.facebook.com/gadget360.ng" 
+                  href="https://www.facebook.com/share/1AFDYyR6RC/?mibextid=wwXIfr" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="p-2 rounded-full bg-muted/30 hover:bg-primary/20 transition-all duration-300 hover:scale-110"

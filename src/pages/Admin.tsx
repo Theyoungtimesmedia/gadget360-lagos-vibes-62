@@ -88,6 +88,38 @@ const Admin = () => {
     "PS5 console with 2 controllers and 3 games bundle - ₦420,000"
   ];
 
+  // Create image preview when file is selected
+  useEffect(() => {
+    if (imageFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(imageFile);
+    } else {
+      setImagePreview("");
+    }
+  }, [imageFile]);
+
+  // Create previews for additional images
+  useEffect(() => {
+    if (additionalImages.length > 0) {
+      const readers = additionalImages.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(readers).then(previews => {
+        setAdditionalPreviews(previews);
+      });
+    } else {
+      setAdditionalPreviews([]);
+    }
+  }, [additionalImages]);
+
   useEffect(() => {
     fetchData();
     

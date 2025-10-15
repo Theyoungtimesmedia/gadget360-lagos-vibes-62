@@ -19,7 +19,7 @@ const Footer = () => {
             </p>
             <div className="flex gap-4">
               <a
-                href="https://www.facebook.com/profile.php?id=61553241800380"
+                href="https://www.facebook.com/share/1AFDYyR6RC/?mibextid=wwXIfr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative p-3 rounded-full bg-muted/30 hover:bg-primary/20 transition-all duration-300 hover:scale-110 hover:shadow-glow"
