@@ -100,7 +100,7 @@ const Header = () => {
                   <img src="/lovable-uploads/4b216da9-22ab-450e-acb1-bb3dbc10b238.png" className="w-4 h-4 opacity-80" alt="Facebook" />
                 </a>
                 <a 
-                  href="https://www.instagram.com/gadget360.ng" 
+                  href="https://www.instagram.com/gadget360ngbackuppage?igsh=MTBscG91aXV6Z3d4cw%3D%3D&utm_source=qr" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="p-2 rounded-full bg-muted/30 hover:bg-primary/20 transition-all duration-300 hover:scale-110"
