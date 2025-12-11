@@ -182,10 +182,11 @@ Instructions:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in gemini-chat function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: errorMessage,
       response: "I'm experiencing technical difficulties. Please contact us directly on WhatsApp at +2347067894474 for immediate assistance!"
     }), {
       status: 500,
