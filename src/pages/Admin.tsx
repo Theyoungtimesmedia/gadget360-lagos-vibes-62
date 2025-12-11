@@ -162,38 +162,6 @@ const Admin = () => {
     };
   }, []);
 
-  // Image preview handler
-  useEffect(() => {
-    if (imageFile) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(imageFile);
-    } else {
-      setImagePreview("");
-    }
-  }, [imageFile]);
-
-  // Additional images preview handler
-  useEffect(() => {
-    const previews: string[] = [];
-    additionalImages.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        previews.push(reader.result as string);
-        if (previews.length === additionalImages.length) {
-          setAdditionalPreviews(previews);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-    
-    if (additionalImages.length === 0) {
-      setAdditionalPreviews([]);
-    }
-  }, [additionalImages]);
-
   const fetchData = async () => {
     try {
       // Fetch products
